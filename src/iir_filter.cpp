@@ -8,7 +8,7 @@
  *
  */
 /* related header files */
-#include "common/utilities/iir_filter.h"
+#include "iir_filter.h"
 
 /* c system header files */
 

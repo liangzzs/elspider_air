@@ -18,7 +18,8 @@
 
 /* internal project header files */
 //#include "common/utilities/basic_func.hpp"
-#include "common/utilities/basic_math.hpp"
+#include "basic_math.hpp"
+#include <ros/ros.h>
 
 /**
  * @brief Construct a new Basic Interface:: Basic Interface object
@@ -37,8 +38,8 @@ BasicInterface::BasicInterface(ros::NodeHandle &r_nh, RobotState &r_robot_state)
     // 初始化 VRPN 功能（默认启用）
     robot_state_.use_vrpn = true;
     vrpn_z_offset_ = 0.0; // 默认 Z 轴偏移量为 0
-    sub_vrpn_msg_ = nh_.subscribe("/vrpn_client_node/" + robot_state_.param.robot_name + "/pose", 1,
-                                  &BasicInterface::vrpnCallback, this);
+    //sub_vrpn_msg_ = nh_.subscribe("/vrpn_client_node/" + robot_state_.param.robot_name + "/pose", 1,
+     //                             &BasicInterface::vrpnCallback, this);
 
     // 初始化 VRPN 滤波器
     IirFilter vrpn_body_linear_vel_filter(2, {0.0675, 0.1349, 0.0675}, {1, -1.1430, 0.4128});
@@ -95,7 +96,8 @@ void BasicInterface::interfaceThread(void)
 void BasicInterface::threadConfig(void)
 {
     bool enable_debug = false;
-    GET_ROS_PARAM(nh_, "/hexapod/enable_debug", enable_debug);
+    //GET_ROS_PARAM(nh_, "/hexapod/enable_debug", enable_debug);
+    nh_.getParam("/hexapod/enable_debug", enable_debug);
     if (enable_debug)
         if (ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Debug))
             ros::console::notifyLoggerLevelsChanged();

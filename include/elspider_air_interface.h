@@ -42,7 +42,7 @@
      void sendMotorCommand(void);
      void updateMotorFeedback(void);
      void updateMotorCommand(void);
-     void imuCallback(const sensor_msgs::Imu &imu);
+     //void imuCallback(const sensor_msgs::Imu &imu);
  
      // ros joystick
      //JoystickManager joystick_manager_;

@@ -48,13 +48,12 @@ const int stm32MotorRedirect[18] = {-1, 1, 1,   -1, -1, -1,   -1, -1, -1,
  * @param[in] r_joy_msg the reference to joy message
  */
 ElspiderAirInterface::ElspiderAirInterface(ros::NodeHandle &r_nh, RobotState &r_robot_state)
-    : BasicInterface(r_nh, r_robot_state), joystick_manager_(r_nh),
-      udp_comm_(kLocalPort, kTargetIp, kTargetPort)
+    : BasicInterface(r_nh, r_robot_state), udp_comm_(kLocalPort, kTargetIp, kTargetPort)
 {
     if (!udp_comm_.init())
-        basic_func::exitProgram();
+        exit(1);
 
-    sub_imu_msg_ = nh_.subscribe("/wheeltec/imu", 1, &ElspiderAirInterface::imuCallback, this);
+    //sub_imu_msg_ = nh_.subscribe("/wheeltec/imu", 1, &ElspiderAirInterface::imuCallback, this);
 
     fdb_monitor_thread_ = std::thread([&]() {
         while (!feedback_ready_flag_ && ros::ok()) // 100Hz
@@ -113,7 +112,9 @@ void ElspiderAirInterface::receiveMotorFeedback(void)
     if (udp_comm_.receive(10)) // 10ms
     {
         if (!udp_ready_flag_)
-            udp_ready_flag_ = true;
+        {    udp_ready_flag_ = true;
+            std::cout<< "udp ready" << std::endl;
+        }
         udp_receive_data_ = udp_comm_.getReceiveData();
     }
     // blocking

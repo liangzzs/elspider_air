@@ -67,7 +67,7 @@ class BasicInterface
      */
     basic_interface::ImuSensor imu_{};
     basic_interface::Odometry odom_{};
-    basic_interface::FootForceSensor foot_force_sensor_;
+    //basic_interface::FootForceSensor foot_force_sensor_;
     std::vector<std::vector<basic_interface::MotorReceive>> motor_receive_;
     std::vector<std::vector<basic_interface::MotorSend>> motor_send_;
 
@@ -79,7 +79,7 @@ class BasicInterface
     void limitCommand(void);
     void updateFeedback(void);
     void updateRobotState(void);
-    void vrpnCallback(const geometry_msgs::PoseStamped &vrpn_pose);
+    //void vrpnCallback(const geometry_msgs::PoseStamped &vrpn_pose);
 
     RobotState &robot_state_;
     //Kinematic kinematic_;

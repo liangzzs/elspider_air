@@ -24,7 +24,11 @@ set(SRC_FILES
   src/udp_comm.cpp
   src/udp_basic.cpp
   src/basic_controller.cpp
+  src/basic_interface.cpp
+  src/elspider_air_interface.cpp
   src/timer.cpp
+  src/state_estimator.cpp
+  src/iir_filter.cpp
 )
 
 add_library(min_udp STATIC ${SRC_FILES})

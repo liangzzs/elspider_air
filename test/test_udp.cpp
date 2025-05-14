@@ -63,6 +63,8 @@ int main(int argc, char *argv[])
     RobotState robot_state(robot_param);
     ControlState control_state(robot_param);
     BasicController basic_controller(nh, robot_state, control_state);
+    bool udp_receive_success_logged = false;
+    bool udp_receive_timeout_logged = false;
 
     // 将robot_state设为全局可访问
     RobotState& robot_state_ = robot_state;
@@ -83,13 +85,22 @@ int main(int argc, char *argv[])
         if (udp_comm.receive(1000))
         {
             udp_receive_data = udp_comm.getReceiveData();
-            std::cout << "UDP receive successfully" << std::endl;
+            if (!udp_receive_success_logged)
+            {
+                std::cout << "UDP receive successfully" << std::endl;
+                udp_receive_success_logged = true;
+                udp_receive_timeout_logged = false; // 重置另一个标志
+            }
         }
         else
         {
-            std::cout << "UDP receive timeout" << std::endl;
+            if (!udp_receive_timeout_logged)
+            {
+                std::cout << "UDP receive timeout" << std::endl;
+                udp_receive_timeout_logged = true;
+                udp_receive_success_logged = false; // 重置另一个标志
+            }
         }
-
         //motor init
         enum { kWaitHwReady, kWaitMotorInit } fsm_state_ = kWaitHwReady;
         int pre_fsm_state = fsm_state_;
