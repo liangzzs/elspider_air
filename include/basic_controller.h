@@ -26,7 +26,7 @@
 #include "basic_controller.h"
 #include "control_state.h"
 
-//#include "common/models/leg_kinematic.h"
+//#include "leg_kinematic.h"
 #include "robot_state.h"
 
 // #include "common/leg_controllers/bezier.h"

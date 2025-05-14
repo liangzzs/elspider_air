@@ -30,7 +30,7 @@ udp::SendData udp_send_data = {};
 // 设置非阻塞模式读取键盘输入
 int kbhit(void)
 {
-    struct termios oldt, newt;
+    struct termios oldt, newt;   
     int ch;
     int oldf;
 
@@ -90,41 +90,67 @@ int main(int argc, char *argv[])
             std::cout << "UDP receive timeout" << std::endl;
         }
 
-        // 检查键盘输入
-        if (kbhit())
-        {
-            char c = getchar();
-            if (c == 'm') // 按下 'm' 键
-            {
-                robot_state_.motor_init_request = true;
-                std::cout << "Motor initialization request triggered." << std::endl;
-            }
-        }
         //motor init
-        if (robot_state_.motor_init_request)
+        enum { kWaitHwReady, kWaitMotorInit } fsm_state_ = kWaitHwReady;
+        int pre_fsm_state = fsm_state_;
+        switch (fsm_state_)
         {
-            static bool first_in_flag = true;
-            if (first_in_flag)
+        case kWaitHwReady:
+            ROS_INFO_ONCE("wait hardware to be ready");
+            if (robot_state_.feedback_ready_flag)
             {
-                std::thread thread([&robot_state_, &basic_controller]() {
-                    while (!robot_state_.motor_init_finished_flag) {
-                        basic_controller.initMotor(); // 调用initMotor函数
-                    }
-                });
-                thread.detach();
-                first_in_flag = false;
+                // enable motor
+                std::cout << "Motor enable." << std::endl;
+                robot_state_.comm_board_state = CommBoardState::kNormal;
+                // set motor pid parameters
+                // for (int i = 0; i < robot_state_.param.leg_num; ++i)
+                // {
+                //     control_state_.joint.kd.col(i) = control_state_.joint.kd_default;
+                // }
+                //updateCommand(CommandType::kParam, control_state_.control_dt, ALL_LEG);
+                fsm_state_ = kWaitMotorInit;
             }
-            if (robot_state_.motor_init_finished_flag)
+            pre_fsm_state = kWaitHwReady;
+            break;
+        case kWaitMotorInit:
+            // wait motor initialization
+            ROS_INFO_ONCE("wait motor initialization");
+            if (kbhit())
             {
-                robot_state_.motor_init_request = false;
-                std::cout << "Motor initialization completed successfully." << std::endl;
+                char c = getchar();
+                if (c == 'm') // 按下 'm' 键
+                {
+                    robot_state_.motor_init_request = true;
+                    std::cout << "Motor initialization request triggered." << std::endl;
+                }
             }
-            else
+            
+            if (robot_state_.motor_init_request)
             {
-                std::cout << "Waiting for motor initialization..." << std::endl;
+                std::cout << "Motor initialization start." << std::endl;
+                static bool first_in_flag = true;
+                if (first_in_flag)
+                {
+                    std::thread thread([&robot_state_, &basic_controller]() {
+                        while (!robot_state_.motor_init_finished_flag) {
+                            basic_controller.initMotor(); // 调用initMotor函数
+                        }
+                    });
+                    thread.detach();
+                    first_in_flag = false;
+                }
+                if (robot_state_.motor_init_finished_flag)
+                {
+                    robot_state_.motor_init_request = false;
+                    std::cout << "Motor initialization completed successfully." << std::endl;
+                }
+                else
+                {
+                    std::cout << "Waiting for motor initialization..." << std::endl;
+                }
             }
+            break;
         }
-
     }
     return 0;
 }
