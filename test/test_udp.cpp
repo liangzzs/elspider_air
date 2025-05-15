@@ -11,6 +11,7 @@
 #include "udp_comm.h"
 #include "basic_controller.h"
 #include "elspider_air.h"
+#include "elspider_air_interface.h"
 #include "robot_state.h"
 #include "robot_param.h"
 #include "control_state.h"
@@ -63,6 +64,7 @@ int main(int argc, char *argv[])
     RobotState robot_state(robot_param);
     ControlState control_state(robot_param);
     BasicController basic_controller(nh, robot_state, control_state);
+    ElspiderAirInterface elspider_air_interface(nh, robot_state);
     bool udp_receive_success_logged = false;
     bool udp_receive_timeout_logged = false;
 
@@ -82,6 +84,7 @@ int main(int argc, char *argv[])
         udp_send_data.state = static_cast<uint8_t>(CommBoardState::kIdle);
         udp_comm.setSendData(udp_send_data);
         udp_comm.send();
+        elspider_air_interface.read();
         if (udp_comm.receive(1000))
         {
             udp_receive_data = udp_comm.getReceiveData();
@@ -108,6 +111,8 @@ int main(int argc, char *argv[])
         {
         case kWaitHwReady:
             ROS_INFO_ONCE("wait hardware to be ready");
+            std::cout << "feedback_ready_flag: " << robot_state_.feedback_ready_flag << std::endl;
+            std::cout << "udp_ready_flag: " << elspider_air_interface.udp_ready_flag_ << std::endl;
             if (robot_state_.feedback_ready_flag)
             {
                 // enable motor

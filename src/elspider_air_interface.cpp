@@ -87,8 +87,8 @@ void ElspiderAirInterface::read(void)
     if (!feedback_ready_flag_ && udp_ready_flag_)
         feedback_ready_flag_ = true;
 
-    updateJoystick();
-    updateImu();
+    //updateJoystick();
+    //updateImu();
     receiveMotorFeedback();
     updateMotorFeedback();
 }

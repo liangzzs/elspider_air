@@ -82,12 +82,12 @@ void BasicInterface::interfaceThread(void)
     }
 
     // some devices don't send feedback until data is received, so write commands first
-    limitCommand();
+    //limitCommand();
     updateCommand();
     write();
     read();
-    updateFeedback();
-    updateRobotState();
+    //updateFeedback();
+    //updateRobotState();
 }
 
 /**

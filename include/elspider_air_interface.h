@@ -31,13 +31,17 @@
    public:
      ElspiderAirInterface(ros::NodeHandle &r_nh, RobotState &r_robot_state);
      ~ElspiderAirInterface() override = default;
+     void read(void) override; // 将 read 方法设置为 public
+     void write(void) override;
+     bool udp_ready_flag_;
+     
  
    private:
-     void read(void) override;
-     void write(void) override;
+     //void read(void) override;
+     //void write(void) override;
  
-     void updateJoystick(void);
-     void updateImu(void);
+     //void updateJoystick(void);
+     //void updateImu(void);
      void receiveMotorFeedback(void);
      void sendMotorCommand(void);
      void updateMotorFeedback(void);
@@ -53,7 +57,7 @@
      UdpComm udp_comm_;
      udp::ReceiveData udp_receive_data_{};
      udp::SendData udp_send_data_{};
-     bool udp_ready_flag_{};
+     //bool udp_ready_flag_{};
  
      // imu
     //  ros::Subscriber sub_imu_msg_;
