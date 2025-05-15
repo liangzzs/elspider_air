@@ -65,11 +65,11 @@ int main(int argc, char *argv[])
     ControlState control_state(robot_param);
     BasicController basic_controller(nh, robot_state, control_state);
     ElspiderAirInterface elspider_air_interface(nh, robot_state);
-    bool udp_receive_success_logged = false;
-    bool udp_receive_timeout_logged = false;
 
     // 将robot_state设为全局可访问
     RobotState& robot_state_ = robot_state;
+    enum { kWaitHwReady, kWaitMotorInit };
+    int fsm_state_ = kWaitHwReady;
 
     // udp initialization
     if (!udp_comm.init())
@@ -88,31 +88,19 @@ int main(int argc, char *argv[])
         if (udp_comm.receive(1000))
         {
             udp_receive_data = udp_comm.getReceiveData();
-            if (!udp_receive_success_logged)
-            {
-                std::cout << "UDP receive successfully" << std::endl;
-                udp_receive_success_logged = true;
-                udp_receive_timeout_logged = false; // 重置另一个标志
-            }
+            std::cout << "UDP receive successfully" << std::endl;             
         }
         else
         {
-            if (!udp_receive_timeout_logged)
-            {
-                std::cout << "UDP receive timeout" << std::endl;
-                udp_receive_timeout_logged = true;
-                udp_receive_success_logged = false; // 重置另一个标志
-            }
+            std::cout << "UDP receive timeout" << std::endl;
         }
         //motor init
-        enum { kWaitHwReady, kWaitMotorInit } fsm_state_ = kWaitHwReady;
-        int pre_fsm_state = fsm_state_;
         switch (fsm_state_)
         {
         case kWaitHwReady:
             ROS_INFO_ONCE("wait hardware to be ready");
-            std::cout << "feedback_ready_flag: " << robot_state_.feedback_ready_flag << std::endl;
-            std::cout << "udp_ready_flag: " << elspider_air_interface.udp_ready_flag_ << std::endl;
+            // std::cout << "feedback_ready_flag: " << robot_state_.feedback_ready_flag << std::endl;
+            // std::cout << "udp_ready_flag: " << elspider_air_interface.udp_ready_flag_ << std::endl;
             if (robot_state_.feedback_ready_flag)
             {
                 // enable motor
@@ -125,8 +113,9 @@ int main(int argc, char *argv[])
                 // }
                 //updateCommand(CommandType::kParam, control_state_.control_dt, ALL_LEG);
                 fsm_state_ = kWaitMotorInit;
+                std::cout << "motor enable finish" << std::endl;
             }
-            pre_fsm_state = kWaitHwReady;
+            //pre_fsm_state = kWaitHwReady;            
             break;
         case kWaitMotorInit:
             // wait motor initialization
@@ -147,9 +136,14 @@ int main(int argc, char *argv[])
                 static bool first_in_flag = true;
                 if (first_in_flag)
                 {
-                    std::thread thread([&robot_state_, &basic_controller]() {
-                        while (!robot_state_.motor_init_finished_flag) {
+                    std::thread thread([&robot_state_, &basic_controller]() 
+                    {
+                        std::cout << "Motor initialization in progress..." << std::endl;
+                        while (!robot_state_.motor_init_finished_flag) 
+                        {
                             basic_controller.initMotor(); // 调用initMotor函数
+                            std::cout << "Motor initialization flag" << std::endl;
+                            
                         }
                     });
                     thread.detach();

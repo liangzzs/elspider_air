@@ -25,7 +25,7 @@
 /**
  * @brief UDP config in CommBoard
  */
-const int kLocalPort = 7;
+const int kLocalPort = 5007;
 const int kTargetPort = 10;
 const std::string kTargetIp = "192.168.5.10";
 
