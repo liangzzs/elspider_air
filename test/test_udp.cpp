@@ -64,10 +64,12 @@ int main(int argc, char *argv[])
     RobotState robot_state(robot_param);
     ControlState control_state(robot_param);
     BasicController basic_controller(nh, robot_state, control_state);
+    //BasicController controller(nh, robot_state, control_state);
     ElspiderAirInterface elspider_air_interface(nh, robot_state);
 
     // 将robot_state设为全局可访问
     RobotState& robot_state_ = robot_state;
+    ControlState& control_state_ = control_state;
     enum { kWaitHwReady, kWaitMotorInit };
     int fsm_state_ = kWaitHwReady;
 
@@ -107,11 +109,11 @@ int main(int argc, char *argv[])
                 std::cout << "Motor enable." << std::endl;
                 robot_state_.comm_board_state = CommBoardState::kNormal;
                 // set motor pid parameters
-                // for (int i = 0; i < robot_state_.param.leg_num; ++i)
-                // {
-                //     control_state_.joint.kd.col(i) = control_state_.joint.kd_default;
-                // }
-                //updateCommand(CommandType::kParam, control_state_.control_dt, ALL_LEG);
+                for (int i = 0; i < robot_state_.param.leg_num; ++i)
+                {
+                    control_state_.joint.kd.col(i) = control_state_.joint.kd_default;
+                }                
+                basic_controller.updateCommand(CommandType::kParam, control_state_.control_dt, ALL_LEG);
                 fsm_state_ = kWaitMotorInit;
                 std::cout << "motor enable finish" << std::endl;
             }

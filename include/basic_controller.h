@@ -56,6 +56,8 @@ class BasicController
     void controllerThread2(void);
     void initMotor(void);  
     int thread_num{};
+    void updateCommand(CommandType command_type, double dt, uint8_t leg_num,
+      bool use_joint_vel_cmd = true);
 
   protected:
     // virtual void rawControllerThread1(void) = 0;
@@ -66,14 +68,13 @@ class BasicController
     // virtual void getParamFromYaml(void) = 0;
 
     // virtual void feedbackHook(void){};
-    // virtual void commandHook(void){};
+    virtual void commandHook(void);
 
     void threadConfig(void);
 
     bool moveFootPosition(CommandType input_cmd_type, CommandType output_cmd_type,
                           const Eigen::MatrixXd &input_cmd, double interpolation_sum_t, double dt);
-    void updateCommand(CommandType command_type, double dt, uint8_t leg_num,
-                       bool use_joint_vel_cmd = true);
+    
     void getFeedback(void);
     
     bool isMoving(uint8_t leg_num);

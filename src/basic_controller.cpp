@@ -48,6 +48,187 @@ timer_(TimerSourceType::kRos)
     control_state_.joint.kd.setZero();
 }
 
+void BasicController::commandHook(void)
+{
+    // 默认实现为空
+}
+
+void BasicController::updateCommand(CommandType command_type, double dt, uint8_t leg_num,
+                                    bool use_joint_vel_cmd)
+{
+    ROS_ASSERT(dt > 0);
+
+    // zero-initialization
+    static Eigen::MatrixXd pre_joint_pos_cmd(robot_state_.param.leg_dof,
+                                             robot_state_.param.leg_num);
+
+    std::unique_lock<std::shared_mutex> lock(robot_state_.cmd_mutex);
+
+    // just copy, for debug
+    robot_state_.foot.pos_cmd = control_state_.foot.pos_cmd;
+    robot_state_.foot.vel_cmd = control_state_.foot.vel_cmd;
+    robot_state_.foot.acc_cmd = control_state_.foot.acc_cmd;
+    robot_state_.foot.force_cmd = control_state_.foot.force_cmd;
+
+    if (command_type == CommandType::kParam) // update parameters
+    {
+        for (int i = 0; i < robot_state_.param.leg_num; ++i)
+        {
+            if (leg_num & LEG(i))
+            {
+                robot_state_.joint.kp.col(i) = control_state_.joint.kp.col(i);
+                robot_state_.joint.kd.col(i) = control_state_.joint.kd.col(i);
+            }
+        }
+    }
+    // else if (command_type == CommandType::kFootForce) // foot force commands
+    // {
+    //     // F = kp * pos_err + kd * vel_err + torque_cmd
+    //     // clear joint kp and kd
+    //     for (int i = 0; i < robot_state_.param.leg_num; ++i)
+    //     {
+    //         if (leg_num & LEG(i))
+    //         {
+    //             robot_state_.joint.kp.col(i).setZero();
+    //             robot_state_.joint.kd.col(i).setZero();
+    //         }
+    //     }
+
+    //     // calculate torque command use jacobian
+    //     robot_state_.fdb_mutex.lock_shared();
+    //     for (int i = 0; i < robot_state_.param.leg_num; ++i)
+    //     {
+    //         if (leg_num & (1 << i))
+    //         {
+    //             // \tau = J^T * F
+    //             robot_state_.joint.torque_cmd.col(i) =
+    //                 kinematic_.getJacobian(robot_state_.joint.pos_fdb.col(i), i).transpose() *
+    //                 control_state_.foot.force_cmd.col(i);
+    //         }
+    //     }
+    //     robot_state_.fdb_mutex.unlock_shared();
+    // }
+    // else if (command_type ==
+    //          CommandType::
+    //              kFootPV) // foot position velocity hybrid & joint torque feedforward commands
+    // {
+    //     // set joint kp and kd
+    //     for (int i = 0; i < robot_state_.param.leg_num; ++i)
+    //     {
+    //         if (leg_num & LEG(i))
+    //         {
+    //             robot_state_.joint.kp.col(i) = control_state_.joint.kp.col(i);
+    //             robot_state_.joint.kd.col(i) = control_state_.joint.kd.col(i);
+    //         }
+    //     }
+    //     for (int i = 0; i < robot_state_.param.leg_num; ++i)
+    //     {
+    //         if (leg_num & LEG(i))
+    //         {
+    //             robot_state_.joint.pos_cmd.col(i) =
+    //                 kinematic_.inverseKinematic(control_state_.foot.pos_cmd.col(i), i);
+    //             if (use_joint_vel_cmd)
+    //             {
+    //                 /* differential method */
+    //                 robot_state_.joint.vel_cmd.col(i) =
+    //                     (robot_state_.joint.pos_cmd.col(i) - pre_joint_pos_cmd.col(i)) / dt;
+    //                 /* analytical method */
+    //                 // robot_state_.fdb_mutex.lock_shared();
+    //                 // // dot{q} = J^{-1} * dot{p}
+    //                 // Eigen::MatrixXd jacobian = kinematic_.getJacobian(robot_state_.joint.pos_fdb.col(i), i);
+    //                 // // Eigen::MatrixXd jacobian_pinv = jacobian.completeOrthogonalDecomposition().pseudoInverse();
+    //                 // Eigen::MatrixXd jacobian_pinv = jacobian.transpose() * (jacobian * jacobian.transpose()).inverse();
+    //                 // robot_state_.joint.vel_cmd.col(i) = jacobian_pinv * control_state_.foot.vel_cmd.col(i);
+    //                 // robot_state_.fdb_mutex.unlock_shared();
+    //             }
+    //             else
+    //             {
+    //                 robot_state_.joint.vel_cmd.setZero();
+    //             }
+    //             // joint torque feedforward
+    //             robot_state_.joint.torque_cmd.col(i) = control_state_.joint.torque_cmd.col(i);
+    //             // robot_state_.joint.torque_cmd.col(i).setZero();
+    //         }
+    //     }
+    // }
+    // else if (command_type ==
+    //          CommandType::kFoot) // foot position velocity hybrid & foot torque feedforward commands
+    // {
+    //     // set joint kp and kd
+    //     for (int i = 0; i < robot_state_.param.leg_num; ++i)
+    //     {
+    //         if (leg_num & LEG(i))
+    //         {
+    //             robot_state_.joint.kp.col(i) = control_state_.joint.kp.col(i);
+    //             robot_state_.joint.kd.col(i) = control_state_.joint.kd.col(i);
+    //         }
+    //     }
+    //     for (int i = 0; i < robot_state_.param.leg_num; ++i)
+    //     {
+    //         if (leg_num & LEG(i))
+    //         {
+    //             robot_state_.joint.pos_cmd.col(i) =
+    //                 kinematic_.inverseKinematic(control_state_.foot.pos_cmd.col(i), i);
+    //             if (use_joint_vel_cmd)
+    //             {
+    //                 /* differential method */
+    //                 robot_state_.joint.vel_cmd.col(i) =
+    //                     (robot_state_.joint.pos_cmd.col(i) - pre_joint_pos_cmd.col(i)) / dt;
+    //                 /* analytical method */
+    //                 // robot_state_.fdb_mutex.lock_shared();
+    //                 // // dot{q} = J^{-1} * dot{p}
+    //                 // Eigen::MatrixXd jacobian = kinematic_.getJacobian(robot_state_.joint.pos_fdb.col(i), i);
+    //                 // // Eigen::MatrixXd jacobian_pinv = jacobian.completeOrthogonalDecomposition().pseudoInverse();
+    //                 // Eigen::MatrixXd jacobian_pinv = jacobian.transpose() * (jacobian * jacobian.transpose()).inverse();
+    //                 // robot_state_.joint.vel_cmd.col(i) = jacobian_pinv * control_state_.foot.vel_cmd.col(i);
+    //                 // robot_state_.fdb_mutex.unlock_shared();
+    //             }
+    //             else
+    //             {
+    //                 robot_state_.joint.vel_cmd.setZero();
+    //             }
+    //             // foot torque feedforward
+    //             // calculate torque command use jacobian
+    //             robot_state_.fdb_mutex.lock_shared();
+    //             for (int i = 0; i < robot_state_.param.leg_num; ++i)
+    //             {
+    //                 if (leg_num & (1 << i))
+    //                 {
+    //                     // \tau = J^T * F
+    //                     robot_state_.joint.torque_cmd.col(i) =
+    //                         kinematic_.getJacobian(robot_state_.joint.pos_fdb.col(i), i)
+    //                             .transpose() *
+    //                         control_state_.foot.force_cmd.col(i);
+    //                 }
+    //             }
+    //             robot_state_.fdb_mutex.unlock_shared();
+    //             // robot_state_.joint.torque_cmd.col(0,i).setZero();
+    //         }
+    //     }
+    // }
+    else if (command_type == CommandType::kJoint) // joint commands
+    {
+        for (int i = 0; i < robot_state_.param.leg_num; ++i)
+        {
+            if (leg_num & LEG(i))
+            {
+                robot_state_.joint.kp.col(i) = control_state_.joint.kp.col(i);
+                robot_state_.joint.kd.col(i) = control_state_.joint.kd.col(i);
+                robot_state_.joint.pos_cmd.col(i) = control_state_.joint.pos_cmd.col(i);
+                robot_state_.joint.torque_cmd.col(i) = control_state_.joint.torque_cmd.col(i);
+
+                if (use_joint_vel_cmd)
+                    robot_state_.joint.vel_cmd.col(i) = control_state_.joint.vel_cmd.col(i);
+                else
+                    robot_state_.joint.vel_cmd.col(i).setZero();
+            }
+        }
+    }
+
+    pre_joint_pos_cmd = robot_state_.joint.pos_cmd;
+
+    //commandHook();
+}
 /**
  * @brief initialize motor
  */
@@ -66,8 +247,6 @@ void BasicController::initMotor(void)
 
     double time_compensate = 0;
     int sum_flag = 0;
-    static int forceControlTime = 0;
-    static int calibrationStep = -1;
 
     switch (robot_state_.param.motor_init_type)
     {
@@ -82,108 +261,77 @@ void BasicController::initMotor(void)
         robot_state_.joint.pos_zero = current_pos;
         robot_state_.motor_init_finished_flag = true;
         break;
-
     // TODO: rewrite this part(Hexapod specific)
     case MotorInitType::kLyingAutoCalibration:
-
         timer_.start();
 
         robot_state_.fdb_mutex.lock_shared();
         current_pos = robot_state_.joint.pos_raw_fdb;
         robot_state_.fdb_mutex.unlock_shared();
 
-        std::cout << "calibrationStep: " << calibrationStep << "; joint_num:" << joint_num
-                  << std::endl;
+        init_finished_flag.setZero();
 
-        switch (calibrationStep)
+        // determine whether the joint has reached the mechanical limit
+        for (int j = 0; j < robot_state_.param.leg_num; ++j)
         {
+            if (std::abs(current_pos(joint_num, j) - last_pos(joint_num, j)) < 0.02)
+            {
+                init_finished_flag(joint_num, j) = true;
+            }
+        }
 
-        case -1: // 给定力控命令
-            control_state_.motor_init_frequency = 100;
-            forceControlTime++;
+        //  determine whether all six joints in the same position reached the mechanical limit
+        sum_flag = 0;
+        for (int j = 0; j < robot_state_.param.leg_num; ++j)
+        {
+            sum_flag += init_finished_flag(joint_num, j);
+        }
+
+        if (sum_flag == 6)
+        {
+            // save motor zero position
             robot_state_.cmd_mutex.lock();
-            if (joint_num == 0)
-                joint_num = 1; // ignore the gen joint
-
+            robot_state_.joint.pos_zero.row(joint_num) = current_pos.row(joint_num);
             for (int j = 0; j < robot_state_.param.leg_num; ++j)
             {
-                robot_state_.joint.torque_cmd(joint_num, j) =
-                    control_state_.motor_init_torque(joint_num);
+                // record the zero position
+                robot_state_.joint.pos_cmd(joint_num, j) =
+                    robot_state_.param.joint_calibration_pos(joint_num, j);
+                // clear torque command and set kp, use PD to keep position
+                robot_state_.joint.torque_cmd(joint_num, j) = 0;
+                control_state_.joint.kp(joint_num, j) = control_state_.joint.kp_default(joint_num);
+                robot_state_.joint.kp(joint_num, j) = control_state_.joint.kp(joint_num, j);
             }
             robot_state_.cmd_mutex.unlock();
 
-            if (forceControlTime > 2)
-            {
-                calibrationStep = 0;
-                forceControlTime = 0;
-            }
-            break;
-
-        case 0: // 判断是否到达机械限位
-
-            init_finished_flag.setZero();
-
-            // determine whether the joint has reached the mechanical limit
-            for (int j = 0; j < robot_state_.param.leg_num; ++j)
-            {
-                if (std::abs(current_pos(joint_num, j) - last_pos(joint_num, j)) < 0.02)
-                {
-                    init_finished_flag(joint_num, j) = true;
-                }
-            }
-
-            //  determine whether all six joints in the same position reached the mechanical limit
-            sum_flag = 0;
-            for (int j = 0; j < robot_state_.param.leg_num; ++j)
-            {
-                sum_flag += init_finished_flag(joint_num, j);
-            }
-
-            if (sum_flag == 6)
-            {
-                // save motor zero position
-                robot_state_.cmd_mutex.lock();
-                robot_state_.joint.pos_zero.row(joint_num) = current_pos.row(joint_num);
-                for (int j = 0; j < robot_state_.param.leg_num; ++j)
-                {
-                    // record the zero position
-                    robot_state_.joint.pos_cmd(joint_num, j) =
-                        robot_state_.param.joint_calibration_pos(joint_num, j);
-                    // clear torque command and set kp, use PD to keep position
-                    robot_state_.joint.torque_cmd(joint_num, j) = 0;
-                    control_state_.joint.kp(joint_num, j) =
-                        control_state_.joint.kp_default(joint_num);
-                    robot_state_.joint.kp(joint_num, j) = control_state_.joint.kp(joint_num, j);
-                }
-                robot_state_.cmd_mutex.unlock();
-
-                ROS_DEBUG_STREAM("joint_pos_zero: " << (current_pos.row(joint_num)));
-                // turn to the next joints
-                ++joint_num;
-                calibrationStep = -1;
-                if (joint_num == 3) // finish calibration
-                {
-                    calibrationStep = 99;
-                }
-            }
-
-            last_pos = current_pos;
-
-            break;
-
-        case 99:
-            robot_state_.motor_init_finished_flag = true;
-            std::cout << "calibration success" << std::endl;
-            break;
+            ROS_DEBUG_STREAM("joint_pos_zero: " << (current_pos.row(joint_num)));
+            // turn to the next joints
+            ++joint_num;
         }
 
+        if (joint_num == 3)
+        {
+            robot_state_.motor_init_finished_flag = true;
+        }
+        else
+        {
+            robot_state_.cmd_mutex.lock();
+            for (int j = 0; j < robot_state_.param.leg_num; ++j)
+            {
+                if (joint_num > 0)
+                    robot_state_.joint.torque_cmd(joint_num, j) =
+                        control_state_.motor_init_torque(joint_num);
+            }
+            robot_state_.cmd_mutex.unlock();
+        }
+
+        last_pos = current_pos;
+
         timer_.stop();
+
         // maintain a fixed control frequency
         time_compensate =
             1000. / (double)control_state_.motor_init_frequency - timer_.elapsedMilliseconds();
-        std::cout << "motor_init_frequency: " << control_state_.motor_init_frequency << std::endl;
-        std::cout << "Elapsed time: " << timer_.elapsedMilliseconds() << " ms" << std::endl;
-        std::cout << "time_compensate: " << time_compensate << std::endl;
         if (!isfinite(time_compensate))
         {
             ROS_FATAL("error frequency");
@@ -193,11 +341,8 @@ void BasicController::initMotor(void)
         {
             // use ros interface to support simulated time
             ros::Duration(time_compensate / 1000.).sleep();
-            // std::this_thread::sleep_for(std::chrono::microseconds(int(1000 * time_compensate)));
         }
-
         break;
-
     case MotorInitType::kAutoCalibration:
         timer_.start();
 
@@ -279,180 +424,6 @@ void BasicController::initMotor(void)
             ros::Duration(time_compensate / 1000.).sleep();
             // std::this_thread::sleep_for(std::chrono::microseconds(int(1000 * time_compensate)));
         }
-        break;
-
-    case MotorInitType::kOnCalibrationShelf:
-
-        timer_.start();
-
-        robot_state_.fdb_mutex.lock_shared();
-        current_pos = robot_state_.joint.pos_raw_fdb;
-        robot_state_.fdb_mutex.unlock_shared();
-        static int kk = 0;
-        static int gg = 0;
-        int maxK = 100;
-
-        std::cout << "calibrationStep: " << calibrationStep << "; joint_num:" << joint_num
-                  << std::endl;
-
-        switch (calibrationStep)
-        {
-
-        case -1: // 给定力控命令
-            forceControlTime++;
-            robot_state_.cmd_mutex.lock();
-            for (int j = 0; j < robot_state_.param.leg_num; ++j)
-            {
-                if (joint_num == 2)
-                {
-                    robot_state_.joint.torque_cmd(joint_num, j) = 2;
-                }
-                else
-                {
-                    robot_state_.joint.torque_cmd(joint_num, j) =
-                        control_state_.motor_init_torque(joint_num);
-                }
-            }
-            robot_state_.cmd_mutex.unlock();
-
-            if (forceControlTime > 2)
-            {
-                calibrationStep = 0;
-                forceControlTime = 0;
-            }
-            break;
-
-        case 0: // 判断是否到达机械限位
-
-            init_finished_flag.setZero();
-
-            // determine whether the joint has reached the mechanical limit
-            for (int j = 0; j < robot_state_.param.leg_num; ++j)
-            {
-                if (std::abs(current_pos(joint_num, j) - last_pos(joint_num, j)) < 0.02)
-                {
-                    init_finished_flag(joint_num, j) = true;
-                }
-            }
-
-            //  determine whether all six joints in the same position reached the mechanical limit
-            sum_flag = 0;
-            for (int j = 0; j < robot_state_.param.leg_num; ++j)
-            {
-                sum_flag += init_finished_flag(joint_num, j);
-            }
-
-            if (sum_flag == 6)
-            {
-                // save motor zero position
-                robot_state_.cmd_mutex.lock();
-                robot_state_.joint.pos_zero.row(joint_num) = current_pos.row(joint_num);
-                for (int j = 0; j < robot_state_.param.leg_num; ++j)
-                {
-                    // record the zero position
-                    robot_state_.joint.pos_cmd(joint_num, j) =
-                        robot_state_.param.joint_calibration_pos(joint_num, j);
-                    // clear torque command and set kp, use PD to keep position
-                    robot_state_.joint.torque_cmd(joint_num, j) = 0;
-                    control_state_.joint.kp(joint_num, j) =
-                        control_state_.joint.kp_default(joint_num);
-                    robot_state_.joint.kp(joint_num, j) = control_state_.joint.kp(joint_num, j);
-                }
-                robot_state_.cmd_mutex.unlock();
-
-                ROS_DEBUG_STREAM("joint_pos_zero: " << (current_pos.row(joint_num)));
-                // turn to the next joints
-                ++joint_num;
-                if (joint_num == 1) // 力控阶段结束,进入根关节回0度case
-                {
-                    calibrationStep = 1;
-                }
-                else if (joint_num == 2) // 膝关节继续力控
-                {
-                    calibrationStep = -1;
-                }
-                else if (joint_num == 3) // 所有关节力控矫正结束，开始控制关节回到指定角度
-                {
-                    calibrationStep = 2;
-                }
-            }
-
-            last_pos = current_pos;
-
-            break;
-
-        case 1: // 根关节回0度位置
-            control_state_.motor_init_frequency = 100;
-            kk++;
-            if (kk > maxK)
-                kk = maxK;
-
-            for (int j = 0; j < robot_state_.param.leg_num; ++j)
-            {
-                float targetAngle = 0.0f;
-                float tmpTgt = robot_state_.param.joint_calibration_pos(0, j) +
-                               (targetAngle - robot_state_.param.joint_calibration_pos(0, j)) /
-                                   float(maxK) * kk;
-                robot_state_.joint.pos_cmd(0, j) = tmpTgt;
-            }
-
-            if (kk == maxK)
-            {
-                control_state_.motor_init_frequency = 1;
-                calibrationStep = -1; // 回到力控阶段
-            }
-            break;
-
-        case 2:
-            control_state_.motor_init_frequency = 100;
-            gg++;
-            if (gg > maxK)
-                gg = maxK;
-
-            for (int j = 0; j < robot_state_.param.leg_num; ++j)
-            {
-                float targetAngle = -40.0f / 180.0 * 3.1415926f; // FIXME: Ghost value
-                float tmpTgt = robot_state_.param.joint_calibration_pos(2, j) +
-                               (targetAngle - robot_state_.param.joint_calibration_pos(2, j)) /
-                                   float(maxK) * gg;
-                robot_state_.joint.pos_cmd(2, j) = tmpTgt;
-
-                targetAngle = -0.0f / 180.0 * 3.1415926f;
-                tmpTgt = robot_state_.param.joint_calibration_pos(1, j) +
-                         (targetAngle - robot_state_.param.joint_calibration_pos(1, j)) /
-                             float(maxK) * gg;
-                robot_state_.joint.pos_cmd(1, j) = tmpTgt;
-            }
-            if (gg == maxK)
-            {
-                control_state_.motor_init_frequency = 1;
-                calibrationStep = 99;
-            }
-            break;
-
-        case 99:
-            robot_state_.motor_init_finished_flag = true;
-            std::cout << "calibration success" << std::endl;
-            break;
-        }
-
-        timer_.stop();
-        // maintain a fixed control frequency
-        time_compensate =
-            1000. / (double)control_state_.motor_init_frequency - timer_.elapsedMilliseconds();
-
-        if (!isfinite(time_compensate))
-        {
-            ROS_FATAL("error frequency");
-            exit(1);
-        }
-        if (time_compensate > 0)
-        {
-            // use ros interface to support simulated time
-            ros::Duration(time_compensate / 1000.).sleep();
-            // std::this_thread::sleep_for(std::chrono::microseconds(int(1000 * time_compensate)));
-        }
-
         break;
     }
 }
